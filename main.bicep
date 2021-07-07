@@ -48,15 +48,11 @@ param appServicePlanSKU string = 'S1'
 @description('Name of the Function')
 param functionName string = '${namePrefix}-function'
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2019-11-01' = if (deployVNet) {
-  name: vnetName
-  location: resourceGroup().location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        vnetAddressSpace
-      ]
-    }
+module vnetModule './vnet.bicep' = if (deployVNet) {
+  name: 'vnet'
+  params: {
+    name: vnetName
+    addressSpace: vnetAddressSpace
     subnets: [
       {
         name: 'storage'
@@ -89,8 +85,8 @@ module storageModule './private-storage.bicep' = if (deployStorage) {
     name: storageAccountName
     skuName: storageSKUName
     skuTier: storageSKUTier
-    vnetId: deployVNet ? virtualNetwork.id : existingVnetId
-    subnetId: deployVNet ? virtualNetwork.properties.subnets[0].id : existingStorageSubnetId
+    vnetId: deployVNet ? vnetModule.outputs.vnetId : existingVnetId
+    subnetId: deployVNet ? vnetModule.outputs.subnets[0].id : existingStorageSubnetId
     endpoints: storageEndpoints
   }
 }
@@ -106,6 +102,6 @@ module functionModule './function.bicep' = {
     appServicePlanName: appServicePlanName
     appServicePlanSKU: appServicePlanSKU
     functionName: functionName
-    functionSubnetId: deployVNet ? virtualNetwork.properties.subnets[1].id : existingFunctionSubnetId
+    functionSubnetId: deployVNet ? vnetModule.outputs.subnets[1].id : existingFunctionSubnetId
   }
 }
